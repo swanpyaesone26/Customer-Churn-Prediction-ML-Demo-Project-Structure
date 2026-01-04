@@ -1,25 +1,17 @@
-import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
+import pandas as pd
 
 
-def preprocess_features(df):
-    """
-    Function of OneHotEncoding for Geography and Gender columns.
-    Args:
-        df (pd.DataFrame): Input DataFrame containing the features to be encoded.
-    """
-    ohe = OneHotEncoder(drop="if_binary", sparse_output=False)
+def build_encoder():
+	"""Return a OneHotEncoder fitted to the training categorical scheme.
 
-    # Columns to encode
-    cols_to_encode = ["Geography", "Gender"]
+	The encoder matches the original training categories for 'Geography' and
+	'Gender' so downstream code can rely on stable feature names.
+	"""
+	encoder = OneHotEncoder(drop="if_binary", sparse_output=False, handle_unknown="ignore")
+	encoder.fit(pd.DataFrame({
+		"Geography": ["France", "Germany", "Spain"],
+		"Gender": ["Male", "Female", "Male"],
+	})[["Geography", "Gender"]])
+	return encoder
 
-    encoded_features = ohe.fit_transform(df[cols_to_encode])
-    new_cols = ohe.get_feature_names_out(cols_to_encode)
-
-    # Construct new DataFrame
-    encoded_df = pd.DataFrame(encoded_features, columns=new_cols, index=df.index)
-
-    # Drop original columns and concatenate encoded columns
-    df_final = pd.concat([df.drop(cols_to_encode, axis=1), encoded_df], axis=1)
-
-    return df_final, ohe
