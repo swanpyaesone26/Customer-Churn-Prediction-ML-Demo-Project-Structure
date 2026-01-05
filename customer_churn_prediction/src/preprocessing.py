@@ -1,25 +1,44 @@
-import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
+import pandas as pd
+import joblib
+from pathlib import Path
+from typing import Optional
 
 
-def preprocess_features(df):
+def build_encoder(save_path: Optional[str] = None):
+    """Return a OneHotEncoder fitted to the training categorical scheme.
+
+    If 'save_path' is provided the fitted encoder will be persisted via
+    joblib for later reuse (recommended for production).
     """
-    Function of OneHotEncoding for Geography and Gender columns.
-    Args:
-        df (pd.DataFrame): Input DataFrame containing the features to be encoded.
-    """
-    ohe = OneHotEncoder(drop="if_binary", sparse_output=False)
+    encoder = OneHotEncoder(
+        drop="if_binary", sparse_output=False, handle_unknown="ignore"
+    )
+    encoder.fit(
+        pd.DataFrame(
+            {
+                "Geography": ["France", "Germany", "Spain"],
+                "Gender": ["Male", "Female", "Male"],
+            }
+        )[["Geography", "Gender"]]
+    )
 
-    # Columns to encode
-    cols_to_encode = ["Geography", "Gender"]
+    if save_path:
+        save_encoder(encoder, save_path)
 
-    encoded_features = ohe.fit_transform(df[cols_to_encode])
-    new_cols = ohe.get_feature_names_out(cols_to_encode)
+    return encoder
 
-    # Construct new DataFrame
-    encoded_df = pd.DataFrame(encoded_features, columns=new_cols, index=df.index)
 
-    # Drop original columns and concatenate encoded columns
-    df_final = pd.concat([df.drop(cols_to_encode, axis=1), encoded_df], axis=1)
+def save_encoder(encoder: OneHotEncoder, path: str) -> None:
+    """Persist a fitted encoder to 'path' using joblib."""
+    dest = Path(path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(encoder, str(dest))
 
-    return df_final, ohe
+
+def load_encoder(path: str) -> Optional[OneHotEncoder]:
+    """Load a persisted encoder from 'path' or return None if not found."""
+    p = Path(path)
+    if not p.exists():
+        return None
+    return joblib.load(str(p))
