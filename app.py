@@ -1,15 +1,29 @@
 import streamlit as st
 import pandas as pd
-import joblib
-from customer_churn_prediction.src.preprocessing import build_encoder
+import yaml
+from customer_churn_prediction.src.preprocessing import build_encoder, load_encoder
+from customer_churn_prediction.src.model import load_model, load_feature_names
 
 # Load model
-model = joblib.load("customer_churn_prediction/data/05-final-churn-model.joblib")
+model = load_model("customer_churn_prediction/data/05-final-churn-model.joblib")
 
 # Build an encoder matching the training one-hot scheme
 encoder = build_encoder()
 
-feature_names = joblib.load("customer_churn_prediction/data/06-feature-names.joblib")
+feature_names = load_feature_names(
+    "customer_churn_prediction/data/06-feature-names.joblib"
+)
+
+# Try to load a persisted encoder; if missing, build and persist it
+encoder_path = "customer_churn_prediction/data/07-encoder.joblib"
+encoder = load_encoder(encoder_path) or build_encoder(save_path=encoder_path)
+
+# Load config
+with open("customer_churn_prediction/config/config.yml", "r", encoding="utf-8") as f:
+    config = yaml.safe_load(f)
+
+# Threshold used for binary decision (default 0.35)
+threshold = config.get("evaluation", {}).get("threshold", 0.35)
 
 st.title("Customer Churn Prediction")
 st.write("Enter customer details to check the risk of leaving the bank.")
@@ -73,7 +87,6 @@ if st.button("Predict Risk"):
 
     prob = model.predict_proba(final_input)[0, 1]
 
-    threshold = 0.35
     prediction = 1 if prob >= threshold else 0
 
     st.subheader(f"Churn Probability: {prob:.2%}")
